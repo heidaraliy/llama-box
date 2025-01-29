@@ -1,0 +1,15 @@
+{
+  "name": "llama-box",
+  "version": "1.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "frontend": "cd frontend && yarn dev",
+    "backend": "cd backend && yarn dev",
+    "dev": "concurrently \"yarn frontend\" \"yarn backend\"",
+    "install:all": "yarn install && cd frontend && yarn install && cd ../backend && yarn install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
