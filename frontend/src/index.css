@@ -1,1 +1,6 @@
 @import "tailwindcss";
+@import "./styles/fonts.css";
+
+body {
+  font-family: "Schibsted Grotesk", system-ui, sans-serif;
+}

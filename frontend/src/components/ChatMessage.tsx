@@ -2,7 +2,7 @@ import React from "react";
 import ReactMarkdown, { Components } from "react-markdown";
 import { Prism, SyntaxHighlighterProps } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-
+import jimmy from "../assets/jimmy.png";
 // really, *really* bad hack to get the syntax highlighter to work...
 const SyntaxHighlighter = Prism as unknown as React.FC<SyntaxHighlighterProps>;
 
@@ -21,11 +21,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     p: ({ children }) => <p className="mb-4 whitespace-pre-line">{children}</p>,
     hr: () => <hr className="my-4 border-t border-gray-300" />,
 
-    /*
-     * related to the syntax highlighter issue above. dumb hack, but whatever --
-     * i don't think it's that bad, just a little ugly.
-     **/
-
+    //related to the syntax highlighter issue above. dumb hack, but whatever --
+    //i don't think it's that bad, just a little ugly.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code: ({ className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || "");
@@ -82,31 +79,64 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   };
 
   return (
-    <div className="mb-4">
-      <span
-        className={`font-bold ${
-          role === "user" ? "text-blue-600" : "text-green-600"
-        }`}
-      >
-        {role === "user" ? "User" : "Assistant"}:
-      </span>
-
-      {thinking && (
-        <div className="ml-4 mt-1 p-2 bg-gray-100 rounded-md italic text-gray-600">
-          <p className="text-sm mb-1 font-semibold">Thinking:</p>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {thinking}
-          </div>
-        </div>
-      )}
-
-      <div className="ml-4 mt-2">
-        <ReactMarkdown
-          className="prose prose-sm max-w-none"
-          components={components}
+    <div
+      className={`mb-4 flex ${
+        role === "user" ? "justify-end" : "justify-start"
+      }`}
+    >
+      <div className={` ${role === "user" ? "text-right" : "text-left"}`}>
+        {/* Avatar and name row */}
+        <div
+          className={`flex items-center mb-1 ${
+            role === "user" ? "justify-end" : "justify-start"
+          }`}
         >
-          {content}
-        </ReactMarkdown>
+          {role === "assistant" && (
+            <div className="flex flex-row items-center">
+              <img
+                src={jimmy}
+                alt="jimmy"
+                className="w-8 rounded-full border-1 border-indigo-950 -scale-x-100"
+              />
+              <span className="text-md ml-1 text-green-600 font-bold italic">
+                jimmy
+              </span>
+            </div>
+          )}
+          {role === "user" && (
+            <span className="text-blue-600 font-bold italic">you</span>
+          )}
+        </div>
+
+        {/* Thinking bubble */}
+        {thinking && (
+          <div
+            className={`mt-2 p-2 bg-gray-100 rounded-md italic text-gray-600 ${
+              role === "user" ? "ml-auto" : "mr-auto"
+            }`}
+          >
+            <p className="text-sm mb-1 font-semibold">💡 Thinking:</p>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-left">
+              {thinking}
+            </div>
+          </div>
+        )}
+
+        {/* Message content */}
+        <div
+          className={`mt-2 ${
+            role === "user"
+              ? "bg-blue-100 text-gray-900 rounded-l-lg rounded-br-lg"
+              : "bg-gray-100 text-gray-900 rounded-r-lg rounded-bl-lg"
+          } p-2`}
+        >
+          <ReactMarkdown
+            className="prose prose-sm max-w-none"
+            components={components}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
       </div>
     </div>
   );

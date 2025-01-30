@@ -18,7 +18,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }, [messages]);
 
   return (
-    <div className="flex-grow bg-white shadow-lg rounded-lg p-4 mb-4 overflow-y-auto">
+    <div className="flex-grow bg-white shadow-lg rounded-xs p-4 mb-4 overflow-y-auto">
       {messages.map((msg, idx) => (
         <ChatMessage
           key={idx}

@@ -23,7 +23,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onModelSelect,
 }) => {
   return (
-    <div className="w-full bg-white rounded-lg shadow-md p-2">
+    <div className="w-full bg-white rounded-xs shadow-md p-2">
       <div className="flex flex-col gap-2">
         <textarea
           value={input}
@@ -35,7 +35,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             }
           }}
           placeholder="Type your message..."
-          className="w-full p-2 border rounded-lg resize-none focus:outline-none focus:border-blue-500"
+          className="w-full p-2 border rounded-xs resize-none focus:outline-none focus:border-blue-500"
           rows={2}
           disabled={isLoading}
         />
@@ -49,7 +49,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <button
             onClick={isLoading ? onCancel : onSend}
             disabled={!input.trim() && !isLoading}
-            className={`px-4 py-1.5 rounded-lg text-white font-medium ${
+            className={`px-4 py-1.5 rounded-xs text-white font-medium ${
               !input.trim() && !isLoading
                 ? "bg-gray-300 cursor-not-allowed"
                 : isLoading
