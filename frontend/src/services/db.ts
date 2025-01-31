@@ -1,16 +1,9 @@
+import { Conversation } from "../types";
+
 interface DBSchema {
   conversations: {
     key: string;
-    value: {
-      id: string;
-      title: string;
-      timestamp: Date;
-      messages: Array<{
-        role: "user" | "assistant";
-        content: string;
-        thinking?: string;
-      }>;
-    };
+    value: Conversation;
   };
   currentConversation: {
     key: "current";
@@ -63,6 +56,7 @@ class DatabaseService {
           const conversations = request.result.map((conv) => ({
             ...conv,
             timestamp: new Date(conv.timestamp),
+            settings: conv.settings || { rolePrompt: "", temperature: 0.7 },
           }));
           resolve(conversations);
         };

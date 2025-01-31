@@ -96,22 +96,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               <img
                 src={jimmy}
                 alt="jimmy"
-                className="w-8 rounded-full border-1 border-indigo-950 -scale-x-100"
+                className="w-8 rounded-full border-1 border-indigo-950 -scale-x-100 rotate-12"
               />
-              <span className="text-md ml-1 text-green-600 font-bold italic">
+              <span className="tracking-wide text-md ml-2 text-indigo-600 font-bold italic">
                 jimmy
               </span>
             </div>
           )}
           {role === "user" && (
-            <span className="text-blue-600 font-bold italic">you</span>
+            <span className="text-blue-600 font-bold italic tracking-wide">
+              you
+            </span>
           )}
         </div>
 
         {/* Thinking bubble */}
         {thinking && (
           <div
-            className={`mt-2 p-2 bg-gray-100 rounded-md italic text-gray-600 ${
+            className={`mt-2 p-2 bg-gray-100 border-2 border-gray-300 rounded-md italic text-gray-600 ${
               role === "user" ? "ml-auto" : "mr-auto"
             }`}
           >
@@ -122,21 +124,23 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         )}
 
-        {/* Message content */}
-        <div
-          className={`mt-2 ${
-            role === "user"
-              ? "bg-blue-100 text-gray-900 rounded-l-lg rounded-br-lg"
-              : "bg-gray-100 text-gray-900 rounded-r-lg rounded-bl-lg"
-          } p-2`}
-        >
-          <ReactMarkdown
-            className="prose prose-sm max-w-none"
-            components={components}
+        {/* Message content - only show when there's actual content */}
+        {content && content.trim() !== "" && (
+          <div
+            className={`mt-2 ${
+              role === "user"
+                ? "flex border-2 bg-blue-100 border-blue-300 text-gray-900 rounded-l-lg rounded-br-lg"
+                : "flex border-2 bg-gray-100 border-gray-300 text-gray-900 rounded-r-lg rounded-bl-lg"
+            } px-4`}
           >
-            {content}
-          </ReactMarkdown>
-        </div>
+            <ReactMarkdown
+              className="prose prose-sm max-w-none mt-3"
+              components={components}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );

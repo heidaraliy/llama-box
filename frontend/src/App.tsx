@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ChatWindow } from "./components/ChatWindow";
 import { ChatInput } from "./components/ChatInput";
-import { Conversation, Message } from "./types";
+import { Conversation, Message, ConversationSettings } from "./types";
 import { ConversationList } from "./components/ConversationList";
 import { db } from "./services/db";
 
@@ -112,6 +112,10 @@ function App() {
         title: input.trim().slice(0, 30) + (input.length > 30 ? "..." : ""),
         timestamp: new Date(),
         messages: [],
+        settings: {
+          rolePrompt: "",
+          temperature: 0.7,
+        },
       };
       await db.saveConversation(newConv); // Save immediately
       setConversations((prev) => [newConv, ...prev]);
@@ -131,6 +135,7 @@ function App() {
       const newConversation = {
         ...updatedConversation,
         messages: [...updatedConversation.messages, userMessage],
+        settings: updatedConversation.settings,
       };
       await db.saveConversation(newConversation);
 
@@ -150,13 +155,19 @@ function App() {
     setInput("");
 
     try {
+      const currentConv = conversations.find(
+        (c) => c.id === currentConversation
+      );
       const response = await fetch("http://localhost:3001/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: userInput,
-          context: "",
-          modelName: selectedModel,
+          context: currentConv?.settings?.rolePrompt || "",
+          modelName: currentConv?.settings?.model || selectedModel,
+          temperature: currentConv?.settings?.temperature || 0.7,
+          maxTokens: currentConv?.settings?.maxTokens || 2048,
+          topP: currentConv?.settings?.topP || 0.9,
         }),
         signal: controller.signal,
       });
@@ -207,6 +218,7 @@ function App() {
                   const updatedConv = {
                     ...currentConv,
                     messages: newMessages,
+                    settings: currentConv.settings,
                   };
                   db.saveConversation(updatedConv).catch(console.error);
 
@@ -267,6 +279,10 @@ function App() {
       title: "New Chat",
       timestamp: new Date(),
       messages: [],
+      settings: {
+        rolePrompt: "",
+        temperature: 0.7,
+      },
     };
     setConversations((prev) => [newConv, ...prev]);
     setCurrentConversation(newId);
@@ -289,6 +305,18 @@ function App() {
     } catch (error) {
       console.error("Error deleting conversation:", error);
     }
+  };
+
+  const handleUpdateTitle = (id: string, newTitle: string) => {
+    setConversations((prev) =>
+      prev.map((conv) => (conv.id === id ? { ...conv, title: newTitle } : conv))
+    );
+  };
+
+  const handleUpdateSettings = (id: string, settings: ConversationSettings) => {
+    setConversations((prev) =>
+      prev.map((conv) => (conv.id === id ? { ...conv, settings } : conv))
+    );
   };
 
   const checkConnection = async () => {
@@ -316,8 +344,11 @@ function App() {
             onSelect={handleSelectConversation}
             onNew={handleNewChat}
             onDelete={handleDeleteConversation}
+            onUpdateTitle={handleUpdateTitle}
+            onUpdateSettings={handleUpdateSettings}
             selectedId={currentConversation ?? undefined}
             isConnected={isConnected}
+            models={models}
           />
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">

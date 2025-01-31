@@ -4,10 +4,15 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "clean:node": "rm -rf node_modules && rm -rf frontend/node_modules && rm -rf backend/node_modules",
+    "clean:py": "rm -rf rag_service/venv",
+    "clean:all": "yarn clean:node && yarn clean:py",
+    "stage": "git rm -r --cached . && git add . && git diff --cached --name-only | sort | uniq -c | sort -nr",
     "frontend": "cd frontend && yarn dev",
     "backend": "cd backend && yarn dev",
     "dev": "concurrently \"yarn frontend\" \"yarn backend\"",
-    "install:all": "yarn install && cd frontend && yarn install && cd ../backend && yarn install"
+    "install:py": "cd rag_service && python3 -m venv venv && . venv/bin/activate && pip install -r requirements.txt",
+    "install:all": "yarn install && cd frontend && yarn install && cd ../backend && yarn install && cd .. && yarn install:py"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

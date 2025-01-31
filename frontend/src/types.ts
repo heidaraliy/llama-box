@@ -1,3 +1,11 @@
+export interface ConversationSettings {
+  rolePrompt: string;
+  temperature: number;
+  model?: string; // Optional, falls back to global selection if not set
+  maxTokens?: number; // Optional limit on response length
+  topP?: number; // Optional nucleus sampling parameter
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
@@ -9,4 +17,5 @@ export interface Conversation {
   title: string;
   timestamp: Date;
   messages: Message[];
+  settings: ConversationSettings;
 }
