@@ -18,6 +18,7 @@ function App() {
     null
   );
   const [isConnected, setIsConnected] = useState(false);
+  const [currentTitle, setCurrentTitle] = useState<string>("");
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -83,6 +84,31 @@ function App() {
     });
   }, [currentConversation]);
 
+  // Load default model on mount
+  useEffect(() => {
+    const loadDefaultModel = async () => {
+      try {
+        const settings = await db.getGlobalSettings();
+        setSelectedModel(settings.defaultModel);
+      } catch (error) {
+        console.error("Error loading default model:", error);
+      }
+    };
+
+    // Create an event listener for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "llama-box-model-change") {
+        loadDefaultModel();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
   const handleCancel = async () => {
     if (abortController) {
       // First abort the frontend request
@@ -101,8 +127,72 @@ function App() {
     }
   };
 
+  const generateTitle = async (message: string, model: string) => {
+    try {
+      const response = await fetch("http://localhost:3001/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt:
+            "Generate a very brief (3-5 words) title for a conversation that starts with this message. Respond with ONLY the title, no quotes or extra text, and make sure that you ABIDE BY THE THREE - FIVE WORD LIMIT AT ALL COSTS! IF YOU FAIL TO DO THIS, YOU DIE. Here's the message: " +
+            message,
+          modelName: model,
+          context:
+            "You generate succinct, yet elegant and descriptive titles for conversations.",
+          temperature: 0,
+        }),
+      });
+
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let responseBuffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter(Boolean);
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(5);
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === "response") {
+                // Instead of concatenating, always use the full buffer
+                responseBuffer = parsed.buffer;
+              }
+            } catch (e) {
+              console.error("Error parsing chunk:", e);
+            }
+          }
+        }
+      }
+
+      // Clean up the title - remove any markdown formatting or extra whitespace
+      const cleanTitle = responseBuffer
+        .replace(/^[#\s*_~`]+|[#\s*_~`]+$/g, "") // Remove markdown characters from start/end
+        .replace(/\n/g, " ") // Replace newlines with spaces
+        .trim();
+
+      return (
+        cleanTitle || message.slice(0, 30) + (message.length > 30 ? "..." : "")
+      );
+    } catch (error) {
+      console.error("Error generating title:", error);
+      return message.slice(0, 30) + (message.length > 30 ? "..." : "");
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
+    const userMessage = { role: "user" as const, content: input };
 
     // Create a new conversation if none exists
     if (!currentConversation) {
@@ -111,40 +201,72 @@ function App() {
         id: newId,
         title: input.trim().slice(0, 30) + (input.length > 30 ? "..." : ""),
         timestamp: new Date(),
-        messages: [],
+        messages: [userMessage], // Include the first message
         settings: {
           rolePrompt: "",
           temperature: 0.7,
+          model: selectedModel,
         },
       };
       await db.saveConversation(newConv); // Save immediately
       setConversations((prev) => [newConv, ...prev]);
       setCurrentConversation(newId);
-    }
+      setMessages([userMessage]);
 
-    const userMessage = { role: "user" as const, content: input };
+      // Generate title after conversation is created
+      generateTitle(input, selectedModel).then((generatedTitle) => {
+        if (generatedTitle) {
+          const updatedConv = {
+            ...newConv,
+            title: generatedTitle,
+          };
+          setConversations((prev) =>
+            prev.map((conv) => (conv.id === newId ? updatedConv : conv))
+          );
+          db.saveConversation(updatedConv).catch(console.error);
+        }
+      });
+    } else {
+      // Update messages state
+      setMessages((prev) => [...prev, userMessage]);
 
-    // Update messages state
-    setMessages((prev) => [...prev, userMessage]);
-
-    // Update conversation in database
-    const updatedConversation = conversations.find(
-      (c) => c.id === currentConversation
-    );
-    if (updatedConversation) {
-      const newConversation = {
-        ...updatedConversation,
-        messages: [...updatedConversation.messages, userMessage],
-        settings: updatedConversation.settings,
-      };
-      await db.saveConversation(newConversation);
-
-      // Update conversations state
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === currentConversation ? newConversation : conv
-        )
+      // Update conversation in database
+      const currentConv = conversations.find(
+        (c) => c.id === currentConversation
       );
+      if (currentConv) {
+        const updatedConv = {
+          ...currentConv,
+          messages: [...currentConv.messages, userMessage],
+        };
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.id === currentConversation ? updatedConv : conv
+          )
+        );
+        await db.saveConversation(updatedConv);
+
+        // Generate title after message update if needed
+        if (currentConv.title === "New Chat") {
+          generateTitle(
+            input,
+            currentConv.settings.model || selectedModel
+          ).then((generatedTitle) => {
+            if (generatedTitle) {
+              const withNewTitle = {
+                ...updatedConv,
+                title: generatedTitle,
+              };
+              setConversations((prev) =>
+                prev.map((conv) =>
+                  conv.id === currentConversation ? withNewTitle : conv
+                )
+              );
+              db.saveConversation(withNewTitle).catch(console.error);
+            }
+          });
+        }
+      }
     }
 
     const controller = new AbortController();
@@ -168,6 +290,7 @@ function App() {
           temperature: currentConv?.settings?.temperature || 0.7,
           maxTokens: currentConv?.settings?.maxTokens || 2048,
           topP: currentConv?.settings?.topP || 0.9,
+          previousMessages: currentConv?.messages || [],
         }),
         signal: controller.signal,
       });
@@ -238,6 +361,50 @@ function App() {
           }
         }
       }
+
+      // Now that the message response is complete, generate title if needed
+      if (!currentConversation) {
+        const generatedTitle = await generateTitle(userInput, selectedModel);
+        if (generatedTitle) {
+          const newConv = conversations.find(
+            (c) => c.id === currentConversation
+          );
+          if (newConv) {
+            const updatedConv = {
+              ...newConv,
+              title: generatedTitle,
+            };
+            setConversations((prev) =>
+              prev.map((conv) =>
+                conv.id === currentConversation ? updatedConv : conv
+              )
+            );
+            await db.saveConversation(updatedConv);
+          }
+        }
+      } else {
+        const currentConv = conversations.find(
+          (c) => c.id === currentConversation
+        );
+        if (currentConv?.title === "New Chat") {
+          const generatedTitle = await generateTitle(
+            userInput,
+            currentConv.settings.model || selectedModel
+          );
+          if (generatedTitle) {
+            const updatedConv = {
+              ...currentConv,
+              title: generatedTitle,
+            };
+            setConversations((prev) =>
+              prev.map((conv) =>
+                conv.id === currentConversation ? updatedConv : conv
+              )
+            );
+            await db.saveConversation(updatedConv);
+          }
+        }
+      }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         console.log("Request cancelled");
@@ -265,6 +432,7 @@ function App() {
         console.log("Loading conversation:", conversation);
         setCurrentConversation(id);
         setMessages(conversation.messages || []);
+        setSelectedModel(conversation.settings.model || selectedModel);
         await db.setCurrentConversation(id);
       }
     } catch (error) {
@@ -272,21 +440,30 @@ function App() {
     }
   };
 
-  const handleNewChat = () => {
-    const newId = Date.now().toString();
-    const newConv = {
-      id: newId,
-      title: "New Chat",
-      timestamp: new Date(),
-      messages: [],
-      settings: {
-        rolePrompt: "",
-        temperature: 0.7,
-      },
-    };
-    setConversations((prev) => [newConv, ...prev]);
-    setCurrentConversation(newId);
-    setMessages([]);
+  const handleNewChat = async () => {
+    try {
+      const settings = await db.getGlobalSettings();
+      const defaultModel = settings.defaultModel;
+
+      const newId = Date.now().toString();
+      const newConv = {
+        id: newId,
+        title: "New Chat",
+        timestamp: new Date(),
+        messages: [],
+        settings: {
+          rolePrompt: "",
+          temperature: 0.7,
+          model: defaultModel,
+        },
+      };
+      setConversations((prev) => [newConv, ...prev]);
+      setCurrentConversation(newId);
+      setSelectedModel(defaultModel);
+      setMessages([]);
+    } catch (error) {
+      console.error("Error creating new chat:", error);
+    }
   };
 
   const handleDeleteConversation = async (id: string) => {
@@ -335,6 +512,50 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const handleModelSelect = async (model: string) => {
+    setSelectedModel(model);
+
+    // Update current conversation's model if one exists
+    if (currentConversation) {
+      const updatedConversations = conversations.map((conv) => {
+        if (conv.id === currentConversation) {
+          return {
+            ...conv,
+            settings: {
+              ...conv.settings,
+              model: model,
+            },
+          };
+        }
+        return conv;
+      });
+
+      setConversations(updatedConversations);
+
+      // Save the updated conversation
+      const currentConv = updatedConversations.find(
+        (c) => c.id === currentConversation
+      );
+      if (currentConv) {
+        await db.saveConversation(currentConv);
+      }
+    }
+  };
+
+  // Add this effect to update the title when currentConversation changes
+  useEffect(() => {
+    const updateTitle = async () => {
+      if (currentConversation) {
+        const conv = conversations.find((c) => c.id === currentConversation);
+        setCurrentTitle(conv?.title || "");
+      } else {
+        setCurrentTitle("Start a new conversation.");
+      }
+    };
+
+    updateTitle();
+  }, [currentConversation, conversations]);
+
   return (
     <div className="flex flex-col h-screen bg-[#c8cbfe] tracking-tighter">
       <div className="flex-grow flex overflow-hidden p-4 gap-4">
@@ -353,16 +574,20 @@ function App() {
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex flex-col flex-grow overflow-hidden">
-            <ChatWindow messages={messages} isLoading={isLoading} />
+            <ChatWindow
+              messages={messages}
+              isLoading={isLoading}
+              models={models}
+              selectedModel={selectedModel}
+              onModelSelect={handleModelSelect}
+              currentTitle={currentTitle}
+            />
             <ChatInput
               input={input}
               setInput={setInput}
               onSend={sendMessage}
               onCancel={handleCancel}
               isLoading={isLoading}
-              models={models}
-              selectedModel={selectedModel}
-              onModelSelect={setSelectedModel}
             />
           </div>
         </div>

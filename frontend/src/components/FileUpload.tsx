@@ -1,22 +1,31 @@
 import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 
-export const FileUpload: React.FC = () => {
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const formData = new FormData();
-    formData.append("file", acceptedFiles[0]);
+interface FileUploadProps {
+  onUploadComplete: (filename: string) => void;
+}
 
-    try {
-      const response = await fetch("http://localhost:8000/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      console.log(data);
-    } catch (error) {
-      console.error("Error uploading file:", error);
-    }
-  }, []);
+export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      const formData = new FormData();
+      formData.append("file", acceptedFiles[0]);
+
+      try {
+        const response = await fetch("http://localhost:8000/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+        if (data.message === "File processed successfully") {
+          onUploadComplete(acceptedFiles[0].name);
+        }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
+    },
+    [onUploadComplete]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 

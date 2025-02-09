@@ -11,7 +11,7 @@
     "frontend": "cd frontend && yarn dev",
     "backend": "cd backend && yarn dev",
     "dev": "concurrently \"yarn frontend\" \"yarn backend\"",
-    "install:py": "cd rag_service && python3 -m venv venv && . venv/bin/activate && pip install -r requirements.txt",
+    "install:py": "cd rag_service && python3.10 -m venv venv && . venv/bin/activate && pip install -r requirements.txt",
     "install:all": "yarn install && cd frontend && yarn install && cd ../backend && yarn install && cd .. && yarn install:py"
   },
   "devDependencies": {

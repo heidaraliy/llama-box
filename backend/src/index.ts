@@ -31,18 +31,30 @@ app.post("/chat", async (req: Request, res: Response) => {
   let ollamaRequest: any = null;
 
   try {
-    const { prompt, context, modelName } = req.body;
+    const { prompt, context, modelName, previousMessages } = req.body;
 
     // Set headers for SSE
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const fullPrompt = `
-        You are a helpful AI assistant.
+    // Format previous messages into context
+    const chatHistory: string = previousMessages
+      ? previousMessages
+          .slice(-20) // Get last 20 messages
+          .map((msg: any) => `${msg.role}: ${msg.content}`)
+          .join("\n")
+      : "";
 
-        Context:
-        ${context || ""}
+    const fullPrompt = `
+        Your role:
+        ${
+          context ||
+          "You are a friendly and helpful assistant, helping with any questions or tasks, no matter how complex."
+        }
+
+        Previous conversation:
+        ${chatHistory}
 
         User's prompt:
         ${prompt}
@@ -175,7 +187,7 @@ app.get("/models", async (_req: Request, res: Response) => {
     const { stdout } = await execAsync("ollama list");
 
     // Parse the output into structured data
-    const lines = stdout.split("\n").slice(1); // Skip header
+    const lines = stdout.split("\n").slice(1);
     const models = lines
       .filter((line) => line.trim())
       .map((line) => {

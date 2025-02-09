@@ -1,5 +1,4 @@
 import React from "react";
-import { ModelSelector } from "./ModelSelector";
 
 interface ChatInputProps {
   input: string;
@@ -7,9 +6,6 @@ interface ChatInputProps {
   onSend: () => void;
   onCancel?: () => void;
   isLoading: boolean;
-  models: string[];
-  selectedModel: string;
-  onModelSelect: (model: string) => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -18,13 +14,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onCancel,
   isLoading,
-  models,
-  selectedModel,
-  onModelSelect,
 }) => {
   return (
     <div className="w-full bg-white rounded-xs shadow-md p-2">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-row gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -35,21 +28,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             }
           }}
           placeholder="Type your message..."
-          className="w-full p-2 border rounded-xs resize-none focus:outline-none focus:border-blue-500"
+          className="w-full p-2 border-2 rounded-xs resize-none focus:outline-none focus:border-blue-500 border-gray-400"
           rows={2}
           disabled={isLoading}
         />
-        <div className="flex justify-between items-center gap-2">
-          <ModelSelector
-            models={models}
-            selectedModel={selectedModel}
-            onModelSelect={onModelSelect}
-            disabled={isLoading}
-          />
+        <div className="flex flex-row justify-between">
           <button
             onClick={isLoading ? onCancel : onSend}
             disabled={!input.trim() && !isLoading}
-            className={`px-4 py-1.5 rounded-xs text-white font-medium ${
+            className={`px-6 py-2 rounded-xs text-white font-medium ${
               !input.trim() && !isLoading
                 ? "bg-gray-300 cursor-not-allowed"
                 : isLoading

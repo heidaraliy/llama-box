@@ -9,6 +9,12 @@ interface DBSchema {
     key: "current";
     value: string | null;
   };
+  globalSettings: {
+    key: "settings";
+    value: {
+      defaultModel: string;
+    };
+  };
 }
 
 class DatabaseService {
@@ -18,7 +24,7 @@ class DatabaseService {
 
   async init() {
     return new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.VERSION);
+      const request = indexedDB.open(this.DB_NAME, this.VERSION + 1);
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
@@ -37,6 +43,11 @@ class DatabaseService {
         // Create currentConversation store
         if (!db.objectStoreNames.contains("currentConversation")) {
           db.createObjectStore("currentConversation");
+        }
+
+        // Create globalSettings store if it doesn't exist
+        if (!db.objectStoreNames.contains("globalSettings")) {
+          db.createObjectStore("globalSettings");
         }
       };
     });
@@ -119,6 +130,33 @@ class DatabaseService {
       const transaction = this.db!.transaction("conversations", "readwrite");
       const store = transaction.objectStore("conversations");
       const request = store.delete(id);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async getGlobalSettings() {
+    if (!this.db) await this.init();
+    return new Promise<DBSchema["globalSettings"]["value"]>(
+      (resolve, reject) => {
+        const transaction = this.db!.transaction("globalSettings", "readonly");
+        const store = transaction.objectStore("globalSettings");
+        const request = store.get("settings");
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () =>
+          resolve(request.result || { defaultModel: "qwen2.5:3b" });
+      }
+    );
+  }
+
+  async saveGlobalSettings(settings: DBSchema["globalSettings"]["value"]) {
+    if (!this.db) await this.init();
+    return new Promise<void>((resolve, reject) => {
+      const transaction = this.db!.transaction("globalSettings", "readwrite");
+      const store = transaction.objectStore("globalSettings");
+      const request = store.put(settings, "settings");
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve();
